@@ -6,12 +6,11 @@ import numpy as np
 from ..utils import get_project_root
 
 def create_csv(file: Path) -> pd.DataFrame:
-    data = yf.download("SPY", start="1990-01-01", auto_adjust=False)
+    data = yf.download("SPY", start="2000-01-01", end='2025-11-01',  auto_adjust=False)
     if (data is not None):
 
         data.columns = data.columns.droplevel('Ticker')
         data = data.reset_index() 
-        print(data.columns)
         df =  pd.DataFrame({
             "Date": data["Date"],
             "Close/Last": data["Close"],
