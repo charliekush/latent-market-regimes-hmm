@@ -49,7 +49,3 @@ def train_test_split_by_date(df: pd.DataFrame, date_col="Date",cutoff_date = Non
 
     
 
-
-def save_processed_data(df, path):
-    """Persist processed data subset to disk"""
-    
