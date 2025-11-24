@@ -2,53 +2,64 @@ import yfinance as yf
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import re
+import datetime
 
-from ..utils import get_project_root
 
-def create_csv(file: Path) -> pd.DataFrame:
-    data = yf.download("SPY", start="2000-01-01", end='2025-11-01',  auto_adjust=False)
+
+def file_name(ticker: str, start: str, end: str) -> str:
+    tick = re.sub(r'\W+', '', ticker)
+
+    return f"{tick}_{start.split('-')[0]}-{end.split('-')[0]}.csv"
+    
+
+def create_csv(ticker: str, start: str, end: str) -> pd.DataFrame:
+    
+    try:
+        data = yf.download(ticker, 
+                           start=start, 
+                           end=end,  
+                           auto_adjust=False)
+    except Exception as e:
+        raise(RuntimeError(f"Failed to download from yahoo finance: {e}"))
+
     if (data is not None):
 
-        data.columns = data.columns.droplevel('Ticker')
-        data = data.reset_index() 
-        df =  pd.DataFrame({
-            "Date": data["Date"],
-            "Close/Last": data["Close"],
-            "Volume": data["Volume"],
-            "Open": data["Open"],
-            "High": data["High"],
-            "Low": data["Low"],
-        })
+        try: 
+            data.columns = data.columns.droplevel('Ticker')
+            data = data.reset_index() 
+            df =  pd.DataFrame({
+                "Date": data["Date"],
+                "Close/Last": data["Close"],
+                "Volume": data["Volume"],
+                "Open": data["Open"],
+                "High": data["High"],
+                "Low": data["Low"]
+            })
+            
+            
+            return df
+        except Exception as e:
+            raise(RuntimeError(f"Failed to download from yahoo finance: {e}"))
 
-        df = df.sort_values("Date")
-        print(file)
-        df.to_csv(file, index=False)
-        return df
     
-    raise(RuntimeError("Failed to download from yahoo finance"))
+    raise(RuntimeError("Dataframe is empty"))
     return pd.DataFrame()
 
 
 
-def load_data(raw_file : Path =  get_project_root() / "data" / "raw" / "SPY_history.csv")-> pd.DataFrame:
-    if raw_file.exists():
-        df = pd.read_csv(raw_file)
+def load_data(dir: Path, ticker: str, start: str, end: str)-> pd.DataFrame:
+    file: Path =  dir / file_name(ticker, start, end)
+    
+    if file.exists():
+        df = pd.read_csv(file)
     else: 
-        df = create_csv(raw_file)
-    df['Close'] = df['Close/Last'].astype(float)
-    df['Volume'] = df['Volume'].astype(int)
-    df['Open'] = df['Open'].astype(float)
-    df['High'] = df['High'].astype(float)
-    df['Low'] = df['Low'].astype(float)
-
-    df['Date'] = pd.to_datetime(df['Date'])
-    df = df.sort_values('Date')
+        df = create_csv(ticker, start, end)
+        df.to_csv(dir / file_name(ticker, start, end), index=False)
     return df
 
 
-def compute_log_returns(df: pd.DataFrame):
-    df['log_return'] = np.log(df["Close"] / df['Close'].shift(1))
-    df = df.dropna(subset=['log_return'])
+def compute_log_returns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
     
