@@ -60,15 +60,16 @@ class GaussianHMM:
         """
         T, K = log_B.shape
         log_alpha = np.zeros((T, K))
-
+        eps = 1e-12
         if self.pi_ is not None:
-            log_pi = np.log(self.pi_)
+            log_pi = np.log(self.pi_ + eps)
         else:
             raise ValueError("initial probability distribution is None")
         
 
+
         if self.A_ is not None:
-            log_A = np.log(self.A_)
+            log_A = np.log(self.A_ + eps)
         else:
             raise ValueError("transition  matrix is None")
 
