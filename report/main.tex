@@ -33,7 +33,7 @@ The goal of this project is to use a Hidden Markov Model (HMM) to uncover latent
 We seek to answer questions such as: (1) How many distinct regimes best capture the distributional structure of daily market returns? (2) What statistical properties (mean, variance) define each regime?  (3) How persistent are different regimes, and how frequently do transitions occur?  (4) Do inferred high-volatility states align with known market stress periods, such as the 2008 crisis or the 2020 COVID crash?
 
 \subsection{Dataset}
-We will use daily adjusted closing prices of the SPDR S\&P~500 ETF (ticker: SPY), obtained from publicly available historical data through the \texttt{yfinance} Python API. The dataset will span  2000 through 2025, covering multiple market cycles including the dot com aftermath, the 2008 global financial crisis, the long 2010-2019 expansion, the COVID crash, and the 2022-2023 inflationary period.
+We will use daily adjusted closing prices of the SPDR S\&P~500 ETF (ticker: SPY), obtained from publicly available historical data through the \texttt{yfinance} Python API. The dataset will span  1958 through 2025, covering multiple market cycles including the dot com aftermath, the 2008 global financial crisis, the long 2010-2019 expansion, the COVID crash, and the 2022-2023 inflationary period.
 
 
 Preprocessing consists of: (1) restricting the dataset to valid trading days; (2) computing daily log returns,
