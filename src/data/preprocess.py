@@ -1,7 +1,7 @@
 from typing import Tuple
 import numpy as np
 import pandas as pd
-
+from numpy import reshape
 def clean_ohlc_dataframe(df: pd.DataFrame, price_col : str ="Close"):
     """Clean OHLCV data types, sorting, and obvious NaNs"""
     df = df.copy()
@@ -19,8 +19,6 @@ def clean_ohlc_dataframe(df: pd.DataFrame, price_col : str ="Close"):
     return df
 
 
-
-
 def add_log_returns(df, price_col="Close", return_col="log_return"):
     """Add log returns column based on the given price column"""
 
@@ -30,7 +28,7 @@ def add_log_returns(df, price_col="Close", return_col="log_return"):
     return df
 
 
-def train_test_split_by_date(df: pd.DataFrame, date_col="Date",cutoff_date = None, split_ratio: float = -1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def train_test_split_by_date(df: pd.DataFrame, date_col="Date",cutoff_date = None, split_ratio: float = -1.0) -> tuple[np.ndarray[tuple[int, int]],np.ndarray[tuple[int, int]]]:
     """Split DataFrame into train/test partitions using a cutoff date"""
     
     ratio_passed = (split_ratio <= 1.0 and split_ratio >= 0.0)
@@ -46,9 +44,10 @@ def train_test_split_by_date(df: pd.DataFrame, date_col="Date",cutoff_date = Non
     if ratio_passed:
         cutoff_idx = int(split_ratio * len(df))
         cutoff_date = df.iloc[cutoff_idx][date_col]
-
-    train = df[df[date_col] < cutoff_date]
-    test = df[df[date_col] >= cutoff_date]
+    
+    
+    train = df[df[date_col] < cutoff_date].values.reshape(-1,-1)
+    test = df[df[date_col] >= cutoff_date].values.reshape(-1,-1)
 
     return train, test
 
