@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 from src.data.preprocess import add_log_returns, clean_ohlc_dataframe, train_test_split_by_date
 from src.models.gauss_hmm import GaussianHMM
 from src.models.hmm_model import attach_regimes_to_dataframe, compute_regime_statistics, fit_and_evaluate_hmms
@@ -56,8 +57,11 @@ if __name__ == '__main__':
     stats_df = compute_regime_statistics(df)
     print(stats_df)
 
-    plot_price_with_regimes(df)
-    plot_return_histograms_by_regime(df)
-    plot_regime_sequence(df)
+    plot_dir: Path = get_project_root() / "plots"
+    os.mkdir(plot_dir)
+    plot_price_with_regimes(df, out_path=plot_dir / str("regimes" + ".pdf"))
+    plot_return_histograms_by_regime(df, out_path=plot_dir / str("return_hist" + ".pdf"))
+    plot_regime_sequence(df, out_path=plot_dir / str("sequence" + ".pdf"))
+
 
     
