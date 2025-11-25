@@ -3,57 +3,21 @@ from typing import Optional, Sequence, Tuple, Union
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from src.data.preprocess import add_log_returns, clean_ohlc_dataframe, train_test_split_by_date
+from src.models.gauss_hmm import GaussianHMM
+from src.models.hmm_model import fit_and_evaluate_hmms
 from .utils import get_project_root
 from .data.load_data import compute_log_returns, load_data
 
-PathType = Union[str, Path]
 
 
-def get_data(dir: Path, ticker: str, start: str, end: str) -> pd.DataFrame:
-    df = load_data(dir, ticker, start, end)
-    compute_log_returns(df)
-    return df
 
 
-def attach_regimes_to_dataframe(
-    df: pd.DataFrame, states: Sequence[int] | np.ndarray, col_name: str = "regime"
-) -> pd.DataFrame:
-    """Attach decoded regime labels to the DataFrame."""
-    pass
 
 
-def compute_regime_statistics(
-    df: pd.DataFrame, return_col: str = "log_return", regime_col: str = "regime"
-) -> pd.DataFrame:
-    """Compute per-regime return statistics."""
-    pass
 
 
-def plot_price_with_regimes(
-    df: pd.DataFrame,
-    price_col: str = "Close",
-    regime_col: str = "regime",
-    out_path: Optional[PathType] = None,
-) -> None:
-    """Plot price over time with regimes highlighted."""
-    pass
-
-
-def plot_return_histograms_by_regime(
-    df: pd.DataFrame,
-    return_col: str = "log_return",
-    regime_col: str = "regime",
-    out_path: Optional[PathType] = None,
-) -> None:
-    """Plot return histograms grouped by regime."""
-    pass
-
-
-def plot_regime_sequence(
-    df: pd.DataFrame, regime_col: str = "regime", out_path: Optional[PathType] = None
-) -> None:
-    """Plot the regime sequence over time."""
-    pass
 
 
 if __name__ == '__main__':
@@ -64,7 +28,14 @@ if __name__ == '__main__':
     ticker: str = "^GSPC"
 
     split_date = "1998-01-01"
-    df = get_data(data_dir, ticker, start, end)
+    df = load_data(data_dir, ticker, start, end)
+    df = clean_ohlc_dataframe(df, "Close")
+    df = add_log_returns(df)
+    X_test, X_train, = train_test_split_by_date(df, "Date", split_date)
+    fit_and_evaluate_hmms(X_train=X_train, X_test=X_test, state_list=[2,3,4])
+    
 
     
+    
+
     
