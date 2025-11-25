@@ -16,14 +16,21 @@ class GaussianHMM:
         tol: float = 1e-4,
         random_state: int = 0,
     ) -> None:
+        #number of regimes
         self.n_states: int = n_states
+        #number of iterations for fitting
         self.n_iter: int = n_iter
+        #tolerance for EM convergence
         self.tol: float = tol
+
         self.random_state: np.random.RandomState = np.random.RandomState(
             random_state)
 
+        # initial prob distrobution
         self.pi_: Optional[Array] = None        # shape (K,)
+        # transition matrix
         self.A_: Optional[Array] = None         # shape (K, K)
+
         self.means_: Optional[Array] = None     # shape (K,)
         self.vars_: Optional[Array] = None      # shape (K,)s
 
@@ -54,8 +61,16 @@ class GaussianHMM:
         T, K = log_B.shape
         log_alpha = np.zeros((T, K))
 
-        log_pi = np.log(self.pi_)
-        log_A = np.log(self.A_)
+        if self.pi_ is not None:
+            log_pi = np.log(self.pi_)
+        else:
+            raise ValueError("initial probability distribution is None")
+        
+
+        if self.A_ is not None:
+            log_A = np.log(self.A_)
+        else:
+            raise ValueError("transition  matrix is None")
 
         # t=0
         log_alpha[0] = log_pi + log_B[0]
@@ -121,17 +136,23 @@ class GaussianHMM:
         gamma_sum = gamma[:-1].sum(axis=0)  # (K,)
         self.A_ = xi_sum / gamma_sum[:, None]
 
-        # mean
+        # emmission means
         gamma_sum_all = gamma.sum(axis=0)  # (K,)
         self.means_ = (gamma * x[:, None]).sum(axis=0) / gamma_sum_all
 
-        # variance
-        diff = x[:, None] - self.means_[None, :]
+        # emission variances
+        if self.means_ is not None:
+            diff = x[:, None] - self.means_[None, :]
+        else:
+            raise ValueError("self.means_ is None")
         self.vars_ = (gamma * diff**2).sum(axis=0) / gamma_sum_all
 
-        self.vars_ = np.maximum(self.vars_, 1e-6)
+        if self.vars_ is not None:
+            self.vars_ = np.maximum(self.vars_, 1e-6)
+        else:
+            raise ValueError("self.vars_ is None")
 
-    def fit(self, X: Array) -> "GaussianHMM1D":
+    def fit(self, X: Array) -> "GaussianHMM":
         x = X.reshape(-1)      # (T,)
         T = x.shape[0]
         K = self.n_states
@@ -145,7 +166,11 @@ class GaussianHMM:
 
         prev_ll = -np.inf
         for it in range(self.n_iter):
-            log_B = self._log_gaussian(x, self.means_, self.vars_)
+            if self.vars_ is not None and self.means_ is not None:
+                log_B = self._log_gaussian(x, self.means_, self.vars_)
+            else:
+                raise ValueError("self.vars_ or self.means_is None")
+            
             log_A = np.log(self.A_)
             log_alpha, log_ll = self._forward(log_B)
             log_beta = self._backward(log_B, log_A)
@@ -166,7 +191,10 @@ class GaussianHMM:
 
     def score(self, X: Array) -> float:
         x = X.reshape(-1)
-        log_B = self._log_gaussian(x, self.means_, self.vars_)
+        if self.vars_ is not None and self.means_ is not None:
+                log_B = self._log_gaussian(x, self.means_, self.vars_)
+        else:
+            raise ValueError("self.vars_ or self.means_is None")
         _, log_ll = self._forward(log_B)
         return log_ll
 
@@ -175,9 +203,21 @@ class GaussianHMM:
         T = x.shape[0]
         K = self.n_states
 
-        log_B = self._log_gaussian(x, self.means_, self.vars_)
-        log_A = np.log(self.A_)
-        log_pi = np.log(self.pi_)
+        if self.vars_ is not None and self.means_ is not None:
+                log_B = self._log_gaussian(x, self.means_, self.vars_)
+        else:
+            raise ValueError("self.vars_ or self.means_is None")
+        
+
+        if self.A_ is not None:
+                log_A = np.log(self.A_)
+        else:
+            raise ValueError("self.A_ is None")
+        
+        if self.pi_ is not None:
+                log_pi = np.log(self.pi_)
+        else:
+            raise ValueError("self.pi_ is None")
 
         log_delta = np.zeros((T, K))
         psi = np.zeros((T, K), dtype=int)
@@ -212,7 +252,7 @@ class GaussianHMM:
         stds = np.sqrt(vars_)                              # (K,)
         transmat = np.asarray(self.A_)                     # (K, K)
 
-        # Probability of staying in each state k (A_kk)
+        # prob of staying in each state k (A_kk)
         stay_probs = np.diag(transmat)                     # (K,)
 
         # Expected duration in state k for a geom distribution
