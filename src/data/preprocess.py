@@ -46,9 +46,7 @@ def train_test_split_by_date(
         cutoff_row = df.iloc[int((split_ratio * len(df)))]
         cutoff_date = cutoff_row[date_col]
     
-    if ratio_passed:
-        cutoff_idx = int(split_ratio * len(df))
-        cutoff_date = df.iloc[cutoff_idx][date_col]
+
     
     
     train = df[df[date_col] < cutoff_date].copy()
