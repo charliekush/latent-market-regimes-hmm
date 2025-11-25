@@ -43,9 +43,14 @@ def train_test_split_by_date(df: pd.DataFrame, date_col="Date",cutoff_date = Non
         cutoff_row = df.iloc[int((split_ratio * len(df)))]
         cutoff_date = cutoff_row[date_col]
     
-    train = df[df['date_column'] < cutoff_date]
-    test = df[df['date_column'] >= cutoff_date]
-    return test, train
+    if ratio_passed:
+        cutoff_idx = int(split_ratio * len(df))
+        cutoff_date = df.iloc[cutoff_idx][date_col]
+
+    train = df[df[date_col] < cutoff_date]
+    test = df[df[date_col] >= cutoff_date]
+
+    return train, test
 
     
 
