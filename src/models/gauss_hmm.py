@@ -175,11 +175,12 @@ class GaussianHMM:
         self.vars_ = np.ones(K) * x.var()
 
         prev_ll = -np.inf
-        iterator = (
+        progress = (
             tqdm(range(self.n_iter), desc="GaussianHMM EM", unit="iter", leave=False)
             if show_progress
-            else range(self.n_iter)
+            else None
         )
+        iterator = progress if progress is not None else range(self.n_iter)
         try:
             for _ in iterator:
                 if self.vars_ is not None and self.means_ is not None:
@@ -199,15 +200,15 @@ class GaussianHMM:
                 # M-step
                 self._m_step(x, gamma, xi)
 
-                if show_progress and hasattr(iterator, "set_postfix"):
-                    iterator.set_postfix(log_ll=float(log_ll))
+                if progress is not None:
+                    progress.set_postfix(log_ll=float(log_ll))
 
                 if np.abs(log_ll - prev_ll) < self.tol:
                     break
                 prev_ll = log_ll
         finally:
-            if show_progress and hasattr(iterator, "close"):
-                iterator.close()
+            if progress is not None:
+                progress.close()
 
         return self
 
@@ -224,6 +225,7 @@ class GaussianHMM:
         x = X.reshape(-1)
         T = x.shape[0]
         K = self.n_states
+        eps = 1e-12
 
         if self.vars_ is not None and self.means_ is not None:
                 log_B = self._log_gaussian(x, self.means_, self.vars_)
@@ -237,7 +239,7 @@ class GaussianHMM:
             raise ValueError("self.A_ is None")
         
         if self.pi_ is not None:
-                log_pi = np.log(self.pi_)
+                log_pi = np.log(self.pi_ + eps)
         else:
             raise ValueError("self.pi_ is None")
 

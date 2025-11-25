@@ -8,10 +8,14 @@ import pandas as pd
 
 
 
-def fit_and_evaluate_hmms(X_train: np.ndarray, X_test: np.ndarray, state_list: Sequence[int]
+def fit_and_evaluate_hmms(
+    X_train: np.ndarray,
+    X_test: np.ndarray,
+    state_list: Sequence[int]
 ) -> Dict[int, Dict[str, Any]]:
-    """Fit HMMs for each state count and collect train/test scores."""
-    results = {}
+    """Fit HMMs for each state count and collect train/test scores + AIC/BIC."""
+    results: Dict[int, Dict[str, Any]] = {}
+    T = X_train.shape[0]
 
     for K in state_list:
         model = GaussianHMM(n_states=K, n_iter=100, random_state=0)
@@ -20,10 +24,18 @@ def fit_and_evaluate_hmms(X_train: np.ndarray, X_test: np.ndarray, state_list: S
         train_ll = model.score(X_train)
         test_ll = model.score(X_test)
 
+        # number of free parameters for 1D Gaussian HMM
+        p = K**2 + 2 * K - 1
+
+        aic = 2 * p - 2 * train_ll
+        bic = p * np.log(T) - 2 * train_ll
+
         results[K] = {
             "model": model,
             "train_ll": train_ll,
-            "test_ll": test_ll
+            "test_ll": test_ll,
+            "aic": aic,
+            "bic": bic,
         }
 
     return results

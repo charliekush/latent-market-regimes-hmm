@@ -25,7 +25,7 @@ def plot_price_with_regimes(
     plt.title("Price with HMM Regimes")
     if out_path:
         plt.savefig(out_path, dpi=300)
-    plt.show()
+    
 
 
 def plot_return_histograms_by_regime(
@@ -49,7 +49,6 @@ def plot_return_histograms_by_regime(
 
     if out_path:
         plt.savefig(out_path, dpi=300)
-    plt.show()
 
 
 def plot_regime_sequence(
@@ -65,4 +64,3 @@ def plot_regime_sequence(
 
     if out_path:
         plt.savefig(out_path, dpi=300)
-    plt.show()
