@@ -1,8 +1,8 @@
 from typing import Dict, Optional, Tuple
 
 import numpy as np
+from tqdm.auto import tqdm
 from numpy.typing import NDArray
-
 
 Array = NDArray[np.float64]
 IntArray = NDArray[np.int64]
@@ -129,15 +129,24 @@ class GaussianHMM:
     def _m_step(self, x: Array, gamma: Array, xi: Array) -> None:
         T, K = gamma.shape
         x = x.reshape(-1)
-
+        eps = 1e-12
+        pi_raw = gamma[0] + eps          # avoid zeros
+        self.pi_ = pi_raw / pi_raw.sum() # normalize
         self.pi_ = gamma[0] / gamma[0].sum()
 
-        xi_sum = xi.sum(axis=0)          # (K, K)
-        gamma_sum = gamma[:-1].sum(axis=0)  # (K,)
-        self.A_ = xi_sum / gamma_sum[:, None]
+        xi_sum = xi.sum(axis=0) + eps          # (K, K)
+        gamma_sum = gamma[:-1].sum(axis=0) + eps  # (K,)
+        
+
+
+        A = xi_sum / gamma_sum[:, None]        # row-normalize later
+        A = np.maximum(A, eps)                 # avoid exact zeros
+        A = A / A.sum(axis=1, keepdims=True)   # each row sums to 1
+        self.A_ = A
+        
 
         # emmission means
-        gamma_sum_all = gamma.sum(axis=0)  # (K,)
+        gamma_sum_all = gamma.sum(axis=0) + eps  # (K,)
         self.means_ = (gamma * x[:, None]).sum(axis=0) / gamma_sum_all
 
         # emission variances
@@ -145,14 +154,14 @@ class GaussianHMM:
             diff = x[:, None] - self.means_[None, :]
         else:
             raise ValueError("self.means_ is None")
-        self.vars_ = (gamma * diff**2).sum(axis=0) / gamma_sum_all
 
+        self.vars_ = (gamma * diff**2).sum(axis=0) / gamma_sum_all
         if self.vars_ is not None:
-            self.vars_ = np.maximum(self.vars_, 1e-6)
+            self.vars_ = np.maximum(self.vars_, 1e-6)  # no zero variance
         else:
             raise ValueError("self.vars_ is None")
 
-    def fit(self, X: Array) -> "GaussianHMM":
+    def fit(self, X: Array, show_progress: bool = True) -> "GaussianHMM":
         x = X.reshape(-1)      # (T,)
         T = x.shape[0]
         K = self.n_states
@@ -165,27 +174,39 @@ class GaussianHMM:
         self.vars_ = np.ones(K) * x.var()
 
         prev_ll = -np.inf
-        for it in range(self.n_iter):
-            if self.vars_ is not None and self.means_ is not None:
-                log_B = self._log_gaussian(x, self.means_, self.vars_)
-            else:
-                raise ValueError("self.vars_ or self.means_is None")
-            
-            log_A = np.log(self.A_)
-            log_alpha, log_ll = self._forward(log_B)
-            log_beta = self._backward(log_B, log_A)
+        iterator = (
+            tqdm(range(self.n_iter), desc="GaussianHMM EM", unit="iter", leave=False)
+            if show_progress
+            else range(self.n_iter)
+        )
+        try:
+            for _ in iterator:
+                if self.vars_ is not None and self.means_ is not None:
+                    log_B = self._log_gaussian(x, self.means_, self.vars_)
+                else:
+                    raise ValueError("self.vars_ or self.means_is None")
 
-            # E-step
-            log_gamma = log_alpha + log_beta - log_ll
-            gamma = np.exp(log_gamma)
-            xi = self._compute_xi(x, log_B, log_alpha, log_beta, log_A, log_ll)
+                log_A = np.log(self.A_)
+                log_alpha, log_ll = self._forward(log_B)
+                log_beta = self._backward(log_B, log_A)
 
-            # M-step
-            self._m_step(x, gamma, xi)
+                # E-step
+                log_gamma = log_alpha + log_beta - log_ll
+                gamma = np.exp(log_gamma)
+                xi = self._compute_xi(x, log_B, log_alpha, log_beta, log_A, log_ll)
 
-            if np.abs(log_ll - prev_ll) < self.tol:
-                break
-            prev_ll = log_ll
+                # M-step
+                self._m_step(x, gamma, xi)
+
+                if show_progress and hasattr(iterator, "set_postfix"):
+                    iterator.set_postfix(log_ll=float(log_ll))
+
+                if np.abs(log_ll - prev_ll) < self.tol:
+                    break
+                prev_ll = log_ll
+        finally:
+            if show_progress and hasattr(iterator, "close"):
+                iterator.close()
 
         return self
 
