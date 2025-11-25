@@ -12,7 +12,7 @@ def clean_ohlc_dataframe(df: pd.DataFrame, price_col : str ="Close"):
     df['High'] = df['High'].astype(float)
     df['Low'] = df['Low'].astype(float)
 
-    df['Date'] = pd.to_datetime(df['Date']).astype(np.datetime64)
+    df['Date'] = pd.to_datetime(df['Date'])
 
     df = df.sort_values('Date')
 
