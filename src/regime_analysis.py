@@ -1,14 +1,12 @@
 from pathlib import Path
 from typing import Optional, Sequence, Tuple, Union
-from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import os
 from src.data.preprocess import add_log_returns, clean_ohlc_dataframe, train_test_split_by_date
 from src.models.gauss_hmm import GaussianHMM
 from src.models.hmm_model import attach_regimes_to_dataframe, compute_regime_statistics, fit_and_evaluate_hmms
-from src.plot import plot_price_with_regimes, plot_regime_sequence, plot_return_histograms_by_regime
+from src.plot import plot_price_with_regimes, plot_regime_sequence, plot_return_histograms_by_regime, plot_loglik_convergence
 from .utils import get_project_root
 from .data.load_data import compute_log_returns, load_data
 
@@ -58,10 +56,26 @@ if __name__ == '__main__':
     print(stats_df)
 
     plot_dir: Path = get_project_root() / "plots"
-    os.mkdir(plot_dir)
-    plot_price_with_regimes(df, out_path=plot_dir / str("regimes" + ".pdf"))
-    plot_return_histograms_by_regime(df, out_path=plot_dir / str("return_hist" + ".pdf"))
-    plot_regime_sequence(df, out_path=plot_dir / str("sequence" + ".pdf"))
+    plot_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_price_with_regimes(
+        df,
+        out_path=plot_dir / "regimes.pdf",
+    )
+    plot_return_histograms_by_regime(
+        df,
+        out_path=plot_dir / "return_hist.pdf",
+        xlim=(-0.1, 0.1),
+    )
+    plot_regime_sequence(
+        df,
+        out_path=plot_dir / "sequence.pdf",
+    )
+    if getattr(best_model, "log_likelihood_history_", None):
+        plot_loglik_convergence(
+            best_model.log_likelihood_history_,
+            out_path=plot_dir / "convergence.pdf",
+        )
 
 
     

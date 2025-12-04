@@ -175,6 +175,7 @@ class GaussianHMM:
         self.vars_ = np.ones(K) * x.var()
 
         prev_ll = -np.inf
+        self.log_likelihood_history_: list[float] = []
         progress = (
             tqdm(range(self.n_iter), desc="GaussianHMM EM", unit="iter", leave=False)
             if show_progress
@@ -200,6 +201,7 @@ class GaussianHMM:
                 # M-step
                 self._m_step(x, gamma, xi)
 
+                self.log_likelihood_history_.append(float(log_ll))
                 if progress is not None:
                     progress.set_postfix(log_ll=float(log_ll))
 
