@@ -34,7 +34,7 @@
 
 \subsection*{Problem Description}
 
-Financial markets appear noisy from day to day, yet empirical evidence suggests that price movements are driven by a small number of persistent latent ``regimes,'' such as low-volatility growth periods, high-volatility downturns, or transitional sideways phases (e.g. bull trends, bear markets, high volatility). These regimes are not directly observable, but they affect return distributions, volatility clustering, and risk. 
+Financial markets appear noisy from day to day, yet empirical evidence suggests that price movements are driven by a small number of persistent latent ``regimes,'' such as low-volatility growth periods, high-volatility downturns, or transitional sideways phases (e.g.\ bull trends, bear markets, high volatility). These regimes are not directly observable, but they affect return distributions, volatility clustering, and risk. 
 
 The goal of this project is to use a Hidden Markov Model (HMM) to uncover latent market regimes from historical equity return data. We treat the daily market return as the observed variable and the underlying regime as a hidden state that evolves slowly over time. Using probabilistic reasoning, expectation maximization (Baum-Welch), and sequence inference (Viterbi), we want to characterize how many regimes best describe the behavior of the market and how persistent these regimes are. This problem uses the course topics of latent variable modeling, EM-based learning, and probabilistic inference.
 
@@ -122,7 +122,7 @@ For our EM algorithm, we use a specialized instance of EM called the Baum-Welch 
 \subsection*{Implementation}
 For the analysis of the transition probabilities, we have to examine how the regimes stay at a certain stage for a period of time, and we can compare which regimes with the longest durations and the regimes with the shortest durations that fluctuate much more often. We also need to take into account the entries that are “off diagonal”, which gives the user a visualization of regime switches. This tells a story of whether the market is trending downwards gradually or experiencing a very volatile fluctuation. We also want to find a reasonable duration for the regime. We want to find the average length of a single regime, and observe that certain regimes of lower fluctuations have longer periods of time of slow regression. But at times of fast degradation, it should be a very quick period of time. 
 
-Next, the benchmark that we chose was the single regime Gaussian model. Furthermore, we also used historical data as a benchmark to mark regimes of short duration but very high volatility. We can see that during times of historical financial complications, it should correspond to the timing of high volatility. We should expect to see a correlation between higher stress on the model’s regimes during periods of market stress. This can be seen as a qualitative way to record evidence of the structure of data. 
+Next, the benchmark that we chose was the single regime Gaussian model. Furthermore, we also used historical data as a benchmark to mark regimes of short duration but very high volatility. We can see that during times of historical financial complications, it should correspond to the timing of high volatility. We should expect to see a correlation between higher stress on the model's regimes during periods of market stress. This can be seen as a qualitative way to record evidence of the structure of data. 
 
 The qualities that we should analyze when inspecting decoded regimes are the differences in states between each regime. Double-checking the timing of each of the regimes and seeing if they match up with periods of crisis, and if there are long periods of slight or normal growth instead of longer periods of volatility. Checking the length of the models and observing that it should reflect a calm and steady state instead of a short and volatile state over a longer period of time. Lastly, it should be a proper interpretation of the economy and see that the Gaussian HMM is capturing data that is readable and useful. 
 
@@ -133,76 +133,113 @@ We train the log-likelihood and its AIC and BIC, which will give us a reading of
 
 \section*{Modeling and Inference}
 
-To formalize the market regime detection problem, we created a probabilistic generative model that maps the observable return sequence (1958-1998) to a sequence of latent regimes (1998-2025). We opted for using a Hidden Markov Model that uses several structural assumptions that identify a specific pattern of dependencies between the hidden variables and the observed data. 
-\subsection*{Assumptions}
-\subsubsection*{First-Order Markov Assumption}
-Our first assumption comes from one of the definitions of markov chains that states
+To formalize the market regime detection problem, we use a probabilistic generative model that
+maps the observed return sequence to a sequence of latent regimes. We adopt a $K$-state Hidden
+Markov Model (HMM) that encodes specific assumptions about how regimes evolve over time and
+how they generate daily returns. In this section we describe the assumptions, parameters, and
+dependency structure of this model, and explain how they relate to financial intuition.
 
-\[P\left(S_{t}  \mid  S_{1:t-1}\right)=P\left(S_{t} \mid  S_{t-1}\right)\]
+\subsubsection*{Assumptions}
 
-This reflects the idea that market volatility rates are persistent and evolve gradually. Individual, isolated one day crashes or jumps are rare. 
+Our HMM relies on several standard but important structural assumptions.
 
-
-\subsubsection*{Conditional Independence of returns given the regime}
-Each daily log return \(r_t\) depends only on the current regime:
-
-\[P\left( r_{t} \mid S_{1:t},r_{1:t-1}\right)= P\left( r_{t} \mid S_{t}\right)\]
-
-This assumption captures the idea that once a market’s current state is known, additional past returns do  not provide extra information about the distribution of \(r_t\).
-
-
-
-\subsubsection*{Gaussian emission model}
-For each regime \(k\), returns follow a Gaussian distribution:
-\[r_{t} \mid S_{t} = k  \sim \mathcal{N}\left(\mu_{k},\sigma_{k}^{2}\right)\]
-
-Where \(\mu_{k}\) is the mean daily return and \(\sigma_{k}^{2}\). This aligns with the observation once volatility regimes are accounted for, daily financial returns are approximately Gaussian.\footnote{\cite{classifying-market-regimes}}
-
-\subsubsection*{Stationarity Within Regimes}
-The parameters \(\mu_{k}, \sigma_{k}^{2}\) do not change over time within a regime, this approximates the markets as piecewise stationary
-
-\subsubsection*{Dates are not shuffled}
-
-There is no random ordering of the data. We train on the early years and test on the later years to mimic real forecasting. 
-
-\subsection*{Parameters}
-Let \( K \) be the number of regimes.
-
-\subsubsection*{Initial State Distribution}
-
+\paragraph{First-order Markov dynamics.}
+We assume the hidden regimes follow a first-order Markov chain:
 \[
-\pi_k = \Pr(S_1 = k)
+P(S_t \mid S_{1:t-1}) = P(S_t \mid S_{t-1}).
+\]
+This captures the idea that market conditions are locally persistent. Volatility and risk tend to
+evolve gradually, so today's regime is well summarized by yesterday's regime rather than the full
+history.
+
+\paragraph{Conditional independence of returns given the regime.}
+Each daily log return $r_t$ is conditionally independent of past returns once the current regime
+is known:
+\[
+P(r_t \mid S_{1:t}, r_{1:t-1}) = P(r_t \mid S_t).
+\]
+Intuitively, the regime already encodes the relevant information about volatility and drift. Once
+we know which state the market is in, additional past returns do not change the distribution of
+$r_t$.
+
+\paragraph{Gaussian emission model.}
+Within each regime $k$ we model returns as Gaussian:
+\[
+r_t \mid S_t = k \sim \mathcal{N}(\mu_k, \sigma_k^2),
+\]
+where $\mu_k$ is the mean daily return and $\sigma_k^2$ is the variance. This reflects the
+empirical observation that, conditional on a volatility regime, daily returns are approximately
+Gaussian even though the unconditional distribution is heavy-tailed.
+
+\paragraph{Piecewise stationarity and chronological training.}
+We assume that the emission parameters $(\mu_k, \sigma_k^2)$ are constant over time within a
+regime, so the process is piecewise stationary: the distribution of returns is stable as long as the
+market remains in the same state. At the same time, we never shuffle dates. We train on the
+earlier portion of the sample and evaluate on later years, mimicking a realistic forecasting
+setting and avoiding information leakage from the future into the past.
+
+\subsubsection*{Parameters and financial interpretation}
+
+Let $K$ denote the number of regimes. The HMM is parameterized by:
+
+\medskip
+\noindent
+\textbf{Initial state distribution.}
+The probability that the market starts in regime $k$ is
+\[
+\pi_k = P(S_1 = k), \qquad k = 1, \dots, K.
 \]
 
-\subsubsection*{Transition Matrix}
+\medskip
+\noindent
+\textbf{Transition matrix.}
+The dynamics of regime switches are governed by a $K \times K$ transition matrix
+\[
+A_{ij} = P(S_{t+1} = j \mid S_t = i).
+\]
+Diagonal entries $A_{kk}$ encode persistence of regime $k$, while off-diagonal entries capture
+switches between regimes. The expected duration of regime $k$ under this Markov chain is
+\[
+\mathbb{E}[D_k] = \frac{1}{1 - A_{kk}},
+\]
+so large diagonal probabilities correspond to long-lived regimes.
+
+\medskip
+\noindent
+\textbf{Emission parameters.}
+Each regime $k$ has a mean return $\mu_k$ and variance $\sigma_k^2$. Financially, these
+parameters distinguish different market environments:
+
+\begin{itemize}
+    \item high-volatility regimes have large $\sigma_k$;
+    \item bull-market regimes have positive $\mu_k$;
+    \item crisis regimes may combine negative $\mu_k$ with elevated $\sigma_k$.
+\end{itemize}
+
+Together, $(\pi, A, \{\mu_k, \sigma_k^2\}_{k=1}^K)$ define the complete generative story for the
+return sequence under the HMM.
+
+\subsubsection*{Structure of dependencies}
+
+Figure~\ref{fig:hmm-structure} summarizes the dependency structure of our model. The hidden
+regimes $(S_1, \dots, S_T)$ form a Markov chain along the horizontal axis, and each daily log
+return $X_t$ is generated conditionally on the corresponding hidden regime $S_t$:
 
 \[
-A_{ij} = \Pr(S_{t+1} = j \mid S_t = i)
+S_1 \rightarrow S_2 \rightarrow S_3 \rightarrow \cdots \rightarrow S_T
+\]
+\[
+\downarrow \qquad \downarrow \qquad \downarrow \qquad \qquad \downarrow
+\]
+\[
+X_1 \quad\;\; X_2 \quad\;\; X_3 \quad\;\; \cdots \quad\;\; X_T.
 \]
 
-This encodes:
-\begin{itemize}
-    \item regime persistence (diagonal entries)
-    \item switching behavior (off-diagonal entries)
-    \item expected duration: \(\mathbb{E}[D_k] = \frac{1}{1 - A_{kk}}\)
-\end{itemize}
+Horizontal arrows encode the temporal evolution of regimes, while vertical arrows represent the
+emission of observable returns from each regime. This structure matches the intuition that
+market states evolve slowly over time and that each day's return is a noisy reflection of the
+current underlying regime.
 
-\subsubsection*{Emission Parameters}
-
-For each regime \( k \):
-\begin{itemize}
-    \item mean return: \( \mu_k \)
-    \item variance (volatility): \( \sigma_k^2 \)
-\end{itemize}
-
-Financial interpretation:
-\begin{itemize}
-    \item high-volatility regimes have large \( \sigma_k \)
-    \item bull markets have positive \( \mu_k \)
-    \item crisis regimes may have negative \( \mu_k \)
-\end{itemize}
-
-\subsection*{Structure of dependencies}
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[
@@ -235,7 +272,8 @@ Financial interpretation:
 \draw[->] (ST) -- (XT);
 
 \end{tikzpicture}
-\caption*{HMM structure: hidden regimes \(S_t\) and observed log returns \(X_t\).}
+\caption{HMM structure: hidden regimes \(S_t\) and observed log returns \(X_t\).}
+\label{fig:hmm-structure}
 \end{figure}
 
 \begin{itemize}
@@ -255,7 +293,7 @@ We trained the HMMs with K = 2,3,4 latent regimes to compare models more easily.
 
 \begin{table}[h!]
 \centering
-\caption*{Model comparison for different values of \(K\).}
+\caption{Model comparison for different values of \(K\).}
 \label{tab:model-comp}
 \begin{tabular}{c c c c c}
 \hline
@@ -272,7 +310,8 @@ The emission parameters of the K=4 model reveal a mixture of one degenerate stat
 
 \begin{table}[h!]
 \centering
-\caption*{Emission parameters of the \(K=4\) HMM.}
+\caption{Emission parameters of the \(K=4\) HMM.}
+\label{tab:emission-params}
 \begin{tabular}{c c c}
 \hline
 Regime & Mean & Std \\ \hline
@@ -283,41 +322,43 @@ Regime & Mean & Std \\ \hline
 \end{tabular}
 \end{table}
 
-This reflects a limitation of Gaussian HMMs, which cannot accommodate heavy tails. Instead, the model allocates an entire regime to an extreme crash day. The remaining three regimes form a coherent structure. Regime 1 exhibits high volatility and slightly negative mean returns, representing crisis conditions. Regime 2 is characterized by very low volatility and positive mean returns, corresponding to calm bull markets. Regime 3 displays moderate volatility and slightly positive returns, forming the background state that dominates ordinary trading.
+This reflects a limitation of Gaussian HMMs, which cannot accommodate heavy tails. Instead, the model allocates an entire regime to an extreme crash day. The remaining three regimes form a coherent structure. Regime 1 exhibits high volatility and slightly negative mean returns, representing crisis conditions. Regime 2 is characterized by very low volatility and positive mean returns, corresponding to calm bull markets. Regime 3 displays moderate volatility and slightly positive returns, forming the background state that dominates ordinary trading. As shown in Figure~\ref{fig:return-distribution}, Regime 1 has the widest return distribution, consistent with the high-volatility stress periods.
 
 \subsection*{Qualitative Interpretation and Model Behavior}
 
-Regime 2 corresponds to long bull market phases defined by stable price appreciation and low realized volatility. Regime 3 appears during typical trading environments, marked by moderate yet persistent fluctuations about a gradually increasing trend. Regime 1 coincides with high-volatility stress periods; because its mean return is slightly negative and its standard deviation almost four times that of Regime 2, it accurately captures crisis dynamics.
-
-\subsection*{Convergence, Stability, and Scalability}
-
-The EM algorithm converged smoothly for every value of K. The log-likelihood increased monotonically at each iteration, and scaled forward-backward recursions prevented numerical underflow. No irregularities in parameter updates were observed aside from the expected behavior of the singleton crash state in the K=4 model. Each iteration of EM requires \(O(K^2 T)\) operations.
+Regime 2 corresponds to long bull market phases defined by stable price appreciation and low realized volatility. Regime 3 appears during typical trading environments, marked by moderate yet persistent fluctuations about a gradually increasing trend. Regime 1 coincides with high-volatility stress periods; because its mean return is slightly negative and its standard deviation almost four times that of Regime 2, it accurately captures crisis dynamics. As shown in Figure~\ref{fig:price-regimes}, the price series is segmented into distinct regimes that align with major market events, and Figure~\ref{fig:regime-sequence} highlights long stretches of calm periods punctuated by crisis spikes.
 
 \begin{figure}[ht]
 \centering
-\begin{subfigure}{\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{../plots/regimes.pdf}
-    \caption*{Price series colored by inferred regimes.}
-\end{subfigure}
-
-\begin{subfigure}{\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{../plots/sequence.pdf}
-    \caption*{Decoded regime sequence over time.}
-\end{subfigure}
-
-\begin{subfigure}{0.8\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{../plots/return_hist.pdf}
-    \caption*{Return distributions by regime.}
-\end{subfigure}
-\begin{subfigure}{0.8\textwidth}
-    \centering
-    \includegraphics[width=0.85\textwidth]{../plots/convergence.pdf}
-    \caption*{Log-Likelihood vs. EM Iteration.}
-\end{subfigure}
+\includegraphics[width=\textwidth]{../plots/regimes.pdf}
+\caption{Price series colored by inferred regimes.}
+\label{fig:price-regimes}
 \end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{../plots/sequence.pdf}
+\caption{Decoded regime sequence over time.}
+\label{fig:regime-sequence}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.9\textwidth]{../plots/return_hist.pdf}
+\caption{Return distributions by regime.}
+\label{fig:return-distribution}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.85\textwidth]{../plots/convergence.pdf}
+\caption{Log-Likelihood vs. EM Iteration.}
+\label{fig:em-convergence}
+\end{figure}
+
+\subsection*{Convergence, Stability, and Scalability}
+
+The EM algorithm converged smoothly for every value of K. The log-likelihood increased monotonically at each iteration, and scaled forward-backward recursions prevented numerical underflow. No irregularities in parameter updates were observed aside from the expected behavior of the singleton crash state in the K=4 model. Each iteration of EM requires \(O(K^2 T)\) operations, and Figure~\ref{fig:em-convergence} shows the stable ascent of the training objective.
 
 
 \section*{Conclusion}
@@ -325,11 +366,11 @@ In conclusion, our analysis shows that a four-state Hidden Markov Model provides
 
 The emission parameters of the \(K\)=4 model also reveal three economically meaningful regimes and one degenerate crash state. The interpretable regimes correspond to calm bull markets with very low volatility, normal trading conditions with moderate fluctuations, and crisis periods with large negative shocks and elevated variance. The degenerate state highlights the limitation of Gaussian HMMs which is their inability to represent heavy-tailed return distributions. Regardless, the structure of the remaining regimes align closely with established financial intuition regarding volatility clustering and market cycles.
 
-Across all the tested values of \(K\), the EM algorithm converged smoothly, and the forward-backward recursions produced stable updates without issues. The regime sequences behave consistently and correspond well with known patterns in market behavior. Overall, the results demonstrate that HMMs offer a powerful framework for uncovering persistent and interpretable dynamics in financial time series, however future extensions could further improve the model’s ability to handle extreme events.
+Across all the tested values of \(K\), the EM algorithm converged smoothly, and the forward-backward recursions produced stable updates without issues. The regime sequences behave consistently and correspond well with known patterns in market behavior. Overall, the results demonstrate that HMMs offer a powerful framework for uncovering persistent and interpretable dynamics in financial time series, however future extensions could further improve the model's ability to handle extreme events.
 
 \section*{Contributions \& Learnings}
 \textbf{Charlie} \\
-I contributed technical components of the project, including data collection and preprocessing, implementing the log-return pipeline, building and debugging the Gaussian HMM, running EM training and model selection, and performing the regime analysis with plots and statistical summaries.  
+I contributed technical components of the project, including data collection and preprocessing, implementing the log-return pipeline, building and debugging the Gaussian HMM, running EM training and model selection, and performing the regime analysis with plots and statistical summaries. I also contributed a lot of the write up and converted groupmates writeup contributions to \LaTeX.
 
 Through this project, I developed a stronger understanding of how probabilistic models behave on real financial time series, especially the practical challenges of EM convergence, numerical stability, and interpreting latent states in an economic context. Working with a full modeling pipeline solidified my intuition about volatility regimes and improved my ability to translate theoretical HMM concepts into a working system.
 
@@ -345,7 +386,14 @@ Helped with results analysis\\
 
 One thing that I learned is that HMMs are able to not only predict but also help show how different hidden states can affect the model's output. For example it was able to distinguish normal days from crisis days without. It gave me a better and more practical understanding of how HMMs work and just how useful they can be.
 
+
+\subsection*{LLM Usage}
+Used LLMs to help write up report in \LaTeX as well as some assistance plotting.
+
+
 \pagebreak
+
+
 \bibliographystyle{abbrvurl}
 \bibliography{references}
 \end{document}
